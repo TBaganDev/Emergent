@@ -1,0 +1,5 @@
+output.ll
+bin
+run.bashrc
+tests/*/output.ll
+.vscode
