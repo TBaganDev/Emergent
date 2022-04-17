@@ -67,8 +67,6 @@ int main(int argc, char **argv) {
   ast::load_module();
 
   // Parser is ran.
-  //get the first token
-  parser::getNextToken();
   fprintf(stderr, "Parsing Source...\n");
   auto program = parser::ParseProgram();
   fprintf(stderr, "Parsing Finished!\n");

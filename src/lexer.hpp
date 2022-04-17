@@ -4,75 +4,73 @@
 #include <string>
 
 namespace lexer {
+  // Type of Token noted within the Grammar.
   enum TOKEN_TYPE {
+    // Special Tokens
+    END_OF_FILE = 0, // End of file
+    ERROR = -100,    // Erroneous Token 
+    ID = -1,      // Identifier [a-zA-Z_][a-zA-Z_0-9]*
 
-    IDENT = -1,        // [a-zA-Z_][a-zA-Z_0-9]*
-    ASSIGN = int('='), // '='
+    // Keywords
+    NEIGHBOURHOOD = -2, // Neighbourhood "neighbourhood"
+    MODEL = -3,         // Model "model"
+    STATE = -4,         // State "state"
+    ANY = -5,           // Any/Universal "any"
+    SOME = -6,          // Some/Existential "some"
+    OF = -7,            // Of "of"
+    ALL = -8,           // All Neighbours "all"
+    DEFAULT = -9,       // Default Tag "default"
 
-    // delimiters
-    LBRA = int('{'),  // left brace
-    RBRA = int('}'),  // right brace
-    LPAR = int('('),  // left parenthesis
-    RPAR = int(')'),  // right parenthesis
-    SC = int(';'),    // semicolon
-    COMMA = int(','), // comma
+    // Literals
+    INT_LIT = -10, // Integer [0-9]+
+    DEC_LIT = -11, // Rational [0-9]+.[0-9]+
 
-    // types
-    INT_TOK = -2,   // "int"
-    VOID_TOK = -3,  // "void"
-    FLOAT_TOK = -4, // "float"
-    BOOL_TOK = -5,  // "bool"
+    // Logical operators
+    AND = -12,   // And 'and'
+    OR = -13,    // Or 'or'
+    XOR = -14,   // Exclusive Or 'xor'
+    NOT = -15,   // Negation 'not'
+    IMPLY = -16, // Implication 'implies'
 
-    // keywords
-    EXTERN = -6,  // "extern"
-    IF = -7,      // "if"
-    ELSE = -8,    // "else"
-    WHILE = -9,   // "while"
-    RETURN = -10, // "return"
-    // TRUE   = -12,     // "true"
-    // FALSE   = -13,     // "false"
+    // Comparison Operators
+    EQ = -17,      // Equal "=="
+    NE = -18,      // Not Equal "!="
+    LE = -19,      // Less than or Equal to "<="
+    LT = int('<'), // Less than "<"
+    GE = -20,      // Greater than or Equal to ">="
+    GT = int('>'), // Greater than ">"
 
-    // literals
-    INT_LIT = -14,   // [0-9]+
-    FLOAT_LIT = -15, // [0-9]+.[0-9]+
-    BOOL_LIT = -16,  // "true" or "false" key words
+    // Numeric Operations
+    ADD = int('+'),  // Addition "+"
+    SUB = int('-'),  // Substraction "-"
+    MULT = int('*'), // Multiplication "*"
+    DIV = int('/'),  // Division "/"
+    MOD = int('%'),  // Modular (getting the remainer) "%"
 
-    // logical operators
-    AND = -17, // "&&"
-    OR = -18,  // "||"
-
-    // operators
-    PLUS = int('+'),    // addition or unary plus
-    MINUS = int('-'),   // substraction or unary negative
-    ASTERIX = int('*'), // multiplication
-    DIV = int('/'),     // division
-    MOD = int('%'),     // modular
-    NOT = int('!'),     // unary negation
-
-    // comparison operators
-    EQ = -19,      // equal
-    NE = -20,      // not equal
-    LE = -21,      // less than or equal to
-    LT = int('<'), // less than
-    GE = -23,      // greater than or equal to
-    GT = int('>'), // greater than
-
-    // special tokens
-    EOF_TOK = 0, // signal end of file
-
-    // invalid
-    INVALID = -100 // signal invalid token
+    // Delimeters (Scope Control)
+    COLON = int(':'),  // Colon ":"
+    LBRACE = int('{'), // Left Brace "{"
+    RBRACE = int('}'), // Right brace "}"
+    LPAREN = int('('), // Left Parenthesis "("
+    RPAREN = int(')'), // Right parenthesis ")"
+    COMMA = int(','),  // Comma ","
+    LSQUAR = int('['), // Left Square Bracket "["
+    RSQUAR = int(']'), // Right Square Bracket "]"
+    PIPE = int('|'),   // Pipe (Cardinality) "|"
   };
 
-  // TOKEN struct is used to keep track of information about a token
+  // Stores data related to each Token.
   struct TOKEN {
-    int type = -100;
+    int type = ERROR;
     std::string lexeme;
-    int lineNo;
-    int columnNo;
+    int line;
+    int column;
   };
 
+  // Returns the next lexer token from the source input.
+  TOKEN getToken(FILE *file);
+  // Resets the lexer's pointer.
   void resetLexer();
-  static TOKEN returnTok(std::string lexVal, int tok_type);
-  TOKEN getTok(FILE *pFile);
+  // Generates and returns a Token given the current lexer's state.
+  static TOKEN returnToken(std::string lexeme, TOKEN_TYPE type);
 }

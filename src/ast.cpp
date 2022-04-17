@@ -81,31 +81,31 @@ std::string current_indent() {
 }
 
 std::string operator_string(int value) {
-  switch(value) {
-    case EQ: return "EQUALS";
-    case AND: return "AND";
-    case OR: return "OR";
-    case NE: return "NOT EQUALS";
-    case LT: return "LESS THAN";
-    case LE: return "LESS THAN OR EQUAL";
-    case GE: return "GREATER THAN";
-    case GT: return "GREATER THAN OR EQUAL";
-    case DIV: return "DIVIDE";
-    case MOD: return "MODULUS";
-    case ASTERIX: return "MULTIPLY";
-    case MINUS: return "SUBTRACT";
-    case PLUS: return "ADDITION";
-  }
+  // switch(value) {
+  //   case EQ: return "EQUALS";
+  //   case AND: return "AND";
+  //   case OR: return "OR";
+  //   case NE: return "NOT EQUALS";
+  //   case LT: return "LESS THAN";
+  //   case LE: return "LESS THAN OR EQUAL";
+  //   case GE: return "GREATER THAN";
+  //   case GT: return "GREATER THAN OR EQUAL";
+  //   case DIV: return "DIVIDE";
+  //   case MOD: return "MODULUS";
+  //   case ASTERIX: return "MULTIPLY";
+  //   case MINUS: return "SUBTRACT";
+  //   case PLUS: return "ADDITION";
+  // }
   return "UNKNOWN";
 }
 
 std::string type_string(int value) {
-  switch(value) {
-    case INT_TOK: return "INT";
-    case FLOAT_TOK: return "FLOAT";
-    case BOOL_TOK: return "BOOL";
-    case VOID_TOK: return "VOID";
-  }
+  // switch(value) {
+  //   case INT_TOK: return "INT";
+  //   case FLOAT_TOK: return "FLOAT";
+  //   case BOOL_TOK: return "BOOL";
+  //   case VOID_TOK: return "VOID";
+  // }
   return "UNKNOWN";
 }
 
@@ -256,30 +256,30 @@ Value * ast::ExprNode::codegen() {
   //Need to check types using Type
 
   //Performs correct operation
-  switch(op) {
-    case MOD:
-      //Can't find modulus for this
-      return Builder.CreateFRem(left, right, "mod");
-    case PLUS:
-      return Builder.CreateFAdd(left, right, "add");
-    case MINUS:
-      return Builder.CreateFSub(left, right, "sub");
-    case ASTERIX:
-      return Builder.CreateFMul(left, right, "mul");
-    case DIV:
-      return Builder.CreateFDiv(left, right, "div");
-    case EQ:
-    case AND:
-    case OR:
-    case NE:
-    case LT:
-      left = Builder.CreateFCmpULT(left, right, "lth");
-      //Converts
-    case LE:
-    case GE:
-    case GT:
-      return nullptr;
-  }
+  // switch(op) {
+    // case MOD:
+    //   //Can't find modulus for this
+    //   return Builder.CreateFRem(left, right, "mod");
+    // case PLUS:
+    //   return Builder.CreateFAdd(left, right, "add");
+    // case MINUS:
+    //   return Builder.CreateFSub(left, right, "sub");
+    // case ASTERIX:
+    //   return Builder.CreateFMul(left, right, "mul");
+    // case DIV:
+    //   return Builder.CreateFDiv(left, right, "div");
+    // case EQ:
+    // case AND:
+    // case OR:
+    // case NE:
+    // case LT:
+    //   left = Builder.CreateFCmpULT(left, right, "lth");
+    //   //Converts
+    // case LE:
+    // case GE:
+    // case GT:
+    //   return nullptr;
+  // }
 
   SemanticError("Operation not recognised.");
   return nullptr;

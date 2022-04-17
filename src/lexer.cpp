@@ -1,259 +1,227 @@
 #include "lexer.hpp"
-
+#include <algorithm>
 #include <string.h>
 #include <string>
+#include <map>
 
-static std::string IdentifierStr; // Filled in if IDENT
-static int IntVal;                // Filled in if INT_LIT
-static bool BoolVal;              // Filled in if BOOL_LIT
-static float FloatVal;            // Filled in if FLOAT_LIT
-static std::string StringVal;     // Filled in if String Literal
-static int lineNo, columnNo;
+static std::string identifier, string;    
+static float decimal;    
+static int integer, line, column;
 
-void lexer::resetLexer() {
-  lineNo = 1;
-  columnNo = 1;
-}
+lexer::TOKEN lexer::getToken(FILE *file) {
+  int prev = ' ';
+  int next = ' ';
 
-static lexer::TOKEN lexer::returnTok(std::string lexVal, int tok_type) {
-  lexer::TOKEN return_tok;
-  return_tok.lexeme = lexVal;
-  return_tok.type = tok_type;
-  return_tok.lineNo = lineNo;
-  return_tok.columnNo = columnNo - lexVal.length() - 1;
-  return return_tok;
-}
+  // Moves pointer forward, storing it in prev.
+  auto nextToken = [&] () {
+    column++;
+    prev = getc(file);
+  };
 
-// Read file line by line -- or look for \n and if found add 1 to line number
-// and reset column number to 0
-/// getTok - Return the next token from standard input.
-lexer::TOKEN lexer::getTok(FILE *pFile) {
+  // Stores the character ahead of the pointer in next.
+  auto lookahead = [&] () {
+    column++;
+    next = getc(file);
+  };
 
-  static int LastChar = ' ';
-  static int NextChar = ' ';
+  // Iterates through all digits, returning the strings.
+  auto iter_digits = [&] () {
+    std::string number;
+    do {
+      number += prev;
+      nextToken();
+    } while (isdigit(prev));
+    return number;
+  };
 
-  // Skip any whitespace.
-  while (isspace(LastChar)) {
-    if (LastChar == '\n' || LastChar == '\r') {
-      lineNo++;
-      columnNo = 1;
+
+
+  // Moves pointer over all whitespace.
+  while(isspace(prev)) {
+    if(prev == '\r' || prev == '\n') {
+      line++;
+      column = 1;
     }
-    LastChar = getc(pFile);
-    columnNo++;
+    nextToken();
   }
 
-  if (isalpha(LastChar) ||
-      (LastChar == '_')) { // identifier: [a-zA-Z_][a-zA-Z_0-9]*
-    IdentifierStr = LastChar;
-    columnNo++;
+  // Indicates a keyword or id is next.
+  if(isalpha(prev) || (prev == '_')) {
+    identifier = prev;
+    nextToken();
 
-    while (isalnum((LastChar = getc(pFile))) || (LastChar == '_')) {
-      IdentifierStr += LastChar;
-      columnNo++;
+    while(isalnum(prev) || prev == '_') {
+      identifier += prev;
+      nextToken();
     }
 
-    if (IdentifierStr == "int")
-      return returnTok("int", INT_TOK);
-    if (IdentifierStr == "bool")
-      return returnTok("bool", BOOL_TOK);
-    if (IdentifierStr == "float")
-      return returnTok("float", FLOAT_TOK);
-    if (IdentifierStr == "void")
-      return returnTok("void", VOID_TOK);
-    if (IdentifierStr == "bool")
-      return returnTok("bool", BOOL_TOK);
-    if (IdentifierStr == "extern")
-      return returnTok("extern", EXTERN);
-    if (IdentifierStr == "if")
-      return returnTok("if", IF);
-    if (IdentifierStr == "else")
-      return returnTok("else", ELSE);
-    if (IdentifierStr == "while")
-      return returnTok("while", WHILE);
-    if (IdentifierStr == "return")
-      return returnTok("return", RETURN);
-    if (IdentifierStr == "true") {
-      BoolVal = true;
-      return returnTok("true", BOOL_LIT);
-    }
-    if (IdentifierStr == "false") {
-      BoolVal = false;
-      return returnTok("false", BOOL_LIT);
-    }
+    // Maps the read string to the Token keyword.
+    std::map<std::string, lexer::TOKEN_TYPE> keywords;
+    keywords["neighbourhood"] = NEIGHBOURHOOD;
+    keywords["model"] = MODEL;
+    keywords["state"] = STATE;
+    keywords["any"] = ANY;
+    keywords["some"] = SOME;
+    keywords["of"] = OF;
+    keywords["all"] = ALL;
+    keywords["default"] = DEFAULT;
+    keywords["and"] = AND;
+    keywords["or"] = OR;
+    keywords["xor"] = XOR;
+    keywords["not"] = NOT;
+    keywords["implies"] = IMPLY;
 
-    return returnTok(IdentifierStr.c_str(), IDENT);
+    std::map<std::string, lexer::TOKEN_TYPE>::iterator it = keywords.find(identifier);
+    if(it != keywords.end()) {
+      return returnToken(identifier.c_str(), it->second);
+    }
+    // If no keyword is matched, must be an identifier.
+    return returnToken(identifier.c_str(), ID);
   }
 
-  if (LastChar == '=') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // EQ: ==
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("==", EQ);
+  if(prev == ':') {
+    nextToken();
+    return returnToken(":", COLON);
+  }
+  if(prev == '{') {
+    nextToken();
+    return returnToken("{", LBRACE);
+  }
+  if(prev == '}') {
+    nextToken();
+    return returnToken("}", RBRACE);
+  }
+  if(prev == '(') {
+    nextToken();
+    return returnToken("(", LPAREN);
+  }
+  if(prev == ')') {
+    nextToken();
+    return returnToken(")", RPAREN);
+  }
+  if(prev == ',') {
+    nextToken();
+    return returnToken(",", COMMA);
+  }
+  if(prev == '[') {
+    nextToken();
+    return returnToken("[", LSQUAR);
+  }
+  if(prev == ']') {
+    nextToken();
+    return returnToken("]", RSQUAR);
+  }
+  if(prev == '|') {
+    nextToken();
+    return returnToken("|", PIPE);
+  }
+
+  if(isdigit(prev)) {
+    // Returns the digits before the point.
+    std::string wholes = iter_digits();
+    integer = strtod(wholes.c_str(), nullptr);
+
+    if(prev == '.') {
+        // Returns digits after the point.
+        std::string fractions = iter_digits();
+        decimal = strtof(fractions.c_str(), nullptr) + integer;
+        return returnToken(wholes + '.' + fractions, DEC_LIT);
     } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("=", ASSIGN);
+        // Must be whole number, as there is no point.
+        return returnToken(wholes, INT_LIT);
     }
   }
 
-  if (LastChar == '{') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok("{", LBRA);
-  }
-  if (LastChar == '}') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok("}", RBRA);
-  }
-  if (LastChar == '(') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok("(", LPAR);
-  }
-  if (LastChar == ')') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok(")", RPAR);
-  }
-  if (LastChar == ';') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok(";", SC);
-  }
-  if (LastChar == ',') {
-    LastChar = getc(pFile);
-    columnNo++;
-    return returnTok(",", COMMA);
+  if(prev == '.') {
+    // Assumed to be fraction <1.
+    std::string fractions = iter_digits();
+    decimal = strtof(fractions.c_str(), nullptr);
+    return returnToken(fractions, DEC_LIT);
   }
 
-  if (isdigit(LastChar) || LastChar == '.') { // Number: [0-9]+.
-    std::string NumStr;
+  if(prev == '=') {
+    lookahead();
+    if (next == '=') {
+      nextToken();
+      return returnToken("==", EQ);
+    } else {
+      prev = next;
+    }
+  }
 
-    if (LastChar == '.') { // Fl=oatingpoint Number: .[0-9]+
+  if(prev == '!') {
+    lookahead();
+    if (next == '=') {
+      nextToken();
+      return returnToken("!=", NE);
+    } else {
+      prev = next;
+    }
+  }
+
+  if(prev == '<') {
+    lookahead();
+    if (next == '=') {
+      nextToken();
+      return returnToken("<=", LE);
+    } else {
+      prev = next;
+      return returnToken("<", LT);
+    }
+  }
+
+  if (prev == '>') {
+    lookahead();
+    if (next == '=') {
+      nextToken();
+      return returnToken(">=", GE);
+    } else {
+      prev = next;
+      return returnToken(">", GT);
+    }
+  }
+
+  if (prev == '/') {
+    nextToken();
+    if (prev == '/') {
+      // Treats the rest of the line like whitespace.
       do {
-        NumStr += LastChar;
-        LastChar = getc(pFile);
-        columnNo++;
-      } while (isdigit(LastChar));
+        nextToken();
+      } while (!(prev == '\n' || prev == '\r' || prev == EOF));
 
-      FloatVal = strtof(NumStr.c_str(), nullptr);
-      return returnTok(NumStr, FLOAT_LIT);
-    } else {
-      do { // Start of Number: [0-9]+
-        NumStr += LastChar;
-        LastChar = getc(pFile);
-        columnNo++;
-      } while (isdigit(LastChar));
-
-      if (LastChar == '.') { // Floatingpoint Number: [0-9]+.[0-9]+)
-        do {
-          NumStr += LastChar;
-          LastChar = getc(pFile);
-          columnNo++;
-        } while (isdigit(LastChar));
-
-        FloatVal = strtof(NumStr.c_str(), nullptr);
-        return returnTok(NumStr, FLOAT_LIT);
-      } else { // Integer : [0-9]+
-        IntVal = strtod(NumStr.c_str(), nullptr);
-        return returnTok(NumStr, INT_LIT);
+      if (prev != EOF) {
+        return getToken(file);
+      } else {
+        return returnToken("EOF",END_OF_FILE);
       }
     }
-  }
-
-  if (LastChar == '&') {
-    NextChar = getc(pFile);
-    if (NextChar == '&') { // AND: &&
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("&&", AND);
-    } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("&", int('&'));
-    }
-  }
-
-  if (LastChar == '|') {
-    NextChar = getc(pFile);
-    if (NextChar == '|') { // OR: ||
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("||", OR);
-    } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("|", int('|'));
-    }
-  }
-
-  if (LastChar == '!') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // NE: !=
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("!=", NE);
-    } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("!", NOT);
-      ;
-    }
-  }
-
-  if (LastChar == '<') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // LE: <=
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok("<=", LE);
-    } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok("<", LT);
-    }
-  }
-
-  if (LastChar == '>') {
-    NextChar = getc(pFile);
-    if (NextChar == '=') { // GE: >=
-      LastChar = getc(pFile);
-      columnNo += 2;
-      return returnTok(">=", GE);
-    } else {
-      LastChar = NextChar;
-      columnNo++;
-      return returnTok(">", GT);
-    }
-  }
-
-  if (LastChar == '/') { // could be division or could be the start of a comment
-    LastChar = getc(pFile);
-    columnNo++;
-    if (LastChar == '/') { // definitely a comment
-      do {
-        LastChar = getc(pFile);
-        columnNo++;
-      } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
-
-      if (LastChar != EOF)
-        return getTok(pFile);
-    } else
-      return returnTok("/", DIV);
+    return returnToken("/", DIV);
   }
 
   // Check for end of file.  Don't eat the EOF.
-  if (LastChar == EOF) {
-    columnNo++;
-    return returnTok("0", EOF_TOK);
+  if (prev == EOF) {
+    column++;
+    return returnToken("EOF", END_OF_FILE);
   }
 
-  // Otherwise, just return the character as its ascii value.
-  int ThisChar = LastChar;
-  std::string s(1, ThisChar);
-  LastChar = getc(pFile);
-  columnNo++;
-  return returnTok(s, int(ThisChar));
+  // If no other cases suit, return the character as its ascii value.
+  int character = prev;
+  std::string char_string(1, character);
+  nextToken();
+  return returnToken(char_string, (lexer::TOKEN_TYPE) character);
+}
+
+void lexer::resetLexer() {
+  line = 1;
+  column = 1;
+}
+
+static lexer::TOKEN lexer::returnToken(std::string lexeme, lexer::TOKEN_TYPE type) {
+  lexer::TOKEN token = {
+    type,
+    lexeme,
+    line,
+    column - (int) (lexeme.length()) - 1
+  };
+  return token;
 }
