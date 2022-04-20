@@ -60,11 +60,11 @@ lexer::TOKEN lexer::getToken(FILE *file) {
     keywords["neighbourhood"] = NEIGHBOURHOOD;
     keywords["model"] = MODEL;
     keywords["state"] = STATE;
-    keywords["any"] = ANY;
-    keywords["some"] = SOME;
-    keywords["of"] = OF;
+    keywords["set"] = SET;
+    keywords["cell"] = CELL;
     keywords["all"] = ALL;
     keywords["default"] = DEFAULT;
+    keywords["this"] = THIS;
     keywords["and"] = AND;
     keywords["or"] = OR;
     keywords["xor"] = XOR;

@@ -15,11 +15,11 @@ namespace lexer {
     NEIGHBOURHOOD = -2, // Neighbourhood "neighbourhood"
     MODEL = -3,         // Model "model"
     STATE = -4,         // State "state"
-    ANY = -5,           // Any/Universal "any"
-    SOME = -6,          // Some/Existential "some"
-    OF = -7,            // Of "of"
-    ALL = -8,           // All Neighbours "all"
-    DEFAULT = -9,       // Default Tag "default"
+    SET = -5,           // Collection/Set "set"
+    CELL = -6,          // Cell iterated over "cell"
+    ALL = -7,           // All Neighbours "all"
+    DEFAULT = -8,       // Default Tag "default"
+    THIS = -9,          // Cell pointed to "this"
 
     // Literals
     INT_LIT = -10, // Integer [0-9]+
