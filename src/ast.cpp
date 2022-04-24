@@ -11,20 +11,20 @@ std::set<int> pipes;
 static LLVMContext TheContext;
 static IRBuilder<> Builder(TheContext);
 static std::unique_ptr<Module> TheModule;
-static std::map<std::string, AllocaInst*> NamedValues; // local var table(s)
-static std::map<std::string, Value *> GlobalNamedValues; //global var table
+// static std::map<std::string, AllocaInst*> NamedValues; // local var table(s)
+// static std::map<std::string, Value *> GlobalNamedValues; //global var table
 
 
-/// CREDITTED: LLVM Tutorial 7
-/// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
-/// the function.  This is used for mutable variables etc.
-static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
-                                          const std::string &VarName) {
-  IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-                 TheFunction->getEntryBlock().begin());
-  return TmpB.CreateAlloca(Type::getDoubleTy(TheContext), 0,
-                           VarName.c_str());
-}
+// /// CREDITTED: LLVM Tutorial 7
+// /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
+// /// the function.  This is used for mutable variables etc.
+// static AllocaInst *CreateEntryBlockAlloca(Function *TheFunction,
+//                                           const std::string &VarName) {
+//   IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+//                  TheFunction->getEntryBlock().begin());
+//   return TmpB.CreateAlloca(Type::getDoubleTy(TheContext), 0,
+//                            VarName.c_str());
+// }
 
 void ast::load_module() {
   // Make the module, which holds all the code.

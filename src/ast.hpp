@@ -77,7 +77,6 @@ namespace ast {
     private:
       std::string model_id;
       std::string neighbourhood_id;
-      std::shared_ptr<Node> default_state;
       std::shared_ptr<Node> states;
     public:
       Model(
@@ -87,15 +86,6 @@ namespace ast {
       ) : model_id(model_id),
           neighbourhood_id(neighbourhood_id),
           states(std::move(states)) {};
-      Model(
-        const std::string &model_id,
-        const std::string &neighbourhood_id,
-        std::shared_ptr<Node> default_state,
-        std::shared_ptr<Node> states
-      ) : model_id(model_id),
-          neighbourhood_id(neighbourhood_id),
-          default_state(std::move(default_state)),
-          states(std::move(states)) {};
       virtual std::string to_string() const;
       virtual Value *codegen();
   };
@@ -103,18 +93,23 @@ namespace ast {
   // Represents the possible state of a cell in the model.
   class State : public Node {
     private:
+      bool is_default = false;
       std::string id;
       std::shared_ptr<Node> predicate;
     public:
       State(
+        bool is_default,
         const std::string &id
-      ) : id(id) {};
+      ) : is_default(is_default),
+          id(id) {};
       State(
         const std::string &id,
         std::shared_ptr<Node> predicate
       ) : id(id),
           predicate(std::move(predicate)) {};
-  }
+      virtual std::string to_string() const;
+      virtual Value *codegen();
+  };
 
   // All neighbours stored here, to be used in multiple models.
   class Neighbourhood : public Node {
@@ -132,6 +127,20 @@ namespace ast {
           neighbours(std::move(neighbours)) {};
       virtual std::string to_string() const;
       virtual Value *codegen();
+  };
+
+  class Neighbour : public Node {
+    private:
+      std::string id;
+      std::shared_ptr<Node> coordinate;
+    public:
+      Neighbour(
+        const std::string &id,
+        std::shared_ptr<Node> coordinate
+      ) : id(id).
+          vector(std::move(vecctor)) {};
+      virtual std::string to_string() const;
+      virtual Value * codegen();
   };
 
   // Binary Expression with a given operation.
@@ -154,14 +163,8 @@ namespace ast {
   // Represents a cell relative to THIS.
   class Coordinate : public Node {
     private:
-      std::string id;
       std::share_ptr<Node> vector;
     public:
-      Coordinate(
-        const std::string &id,
-        std::shared_ptr<Node> vector
-      ) : id(id),
-          vector(std::move(vector)) {};
       Coordinate(
         std::shared_ptr<Node> vector
       ) : vector(std::move(vector)) {};
@@ -243,11 +246,6 @@ namespace ast {
         std::shared_ptr<Node> predicate
       ) : variable(variable),
           coords(std::move(coords)),
-          predicate(std::move(predicate)) {};
-      Cardinality(
-        const std::string &variable,
-        std::shared_ptr<Node> predicate
-      ) : variable(variable),
           predicate(std::move(predicate)) {};
       virtual std::string to_string() const;
       virtual Value * codegen();

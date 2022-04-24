@@ -20,17 +20,17 @@ namespace lexer {
     ALL = -7,           // All Neighbours "all"
     DEFAULT = -8,       // Default Tag "default"
     THIS = -9,          // Cell pointed to "this"
+    IN = -10,           // Indicator for aggratation "in"
 
     // Literals
-    INT_LIT = -10, // Integer [0-9]+
-    DEC_LIT = -11, // Rational [0-9]+.[0-9]+
+    INT_LIT = -11, // Integer [0-9]+
+    DEC_LIT = -12, // Rational [0-9]+.[0-9]+
 
     // Logical operators
-    AND = -12,   // And 'and'
-    OR = -13,    // Or 'or'
-    XOR = -14,   // Exclusive Or 'xor'
-    NOT = -15,   // Negation 'not'
-    IMPLY = -16, // Implication 'implies'
+    AND = -13,   // And 'and'
+    OR = -14,    // Or 'or'
+    XOR = -15,   // Exclusive Or 'xor'
+    NOT = -16,   // Negation 'not'
 
     // Comparison Operators
     EQ = -17,      // Equal "=="

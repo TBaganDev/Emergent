@@ -65,11 +65,11 @@ lexer::TOKEN lexer::getToken(FILE *file) {
     keywords["all"] = ALL;
     keywords["default"] = DEFAULT;
     keywords["this"] = THIS;
+    keywords["in"] = IN;
     keywords["and"] = AND;
     keywords["or"] = OR;
     keywords["xor"] = XOR;
     keywords["not"] = NOT;
-    keywords["implies"] = IMPLY;
 
     std::map<std::string, lexer::TOKEN_TYPE>::iterator it = keywords.find(identifier);
     if(it != keywords.end()) {
