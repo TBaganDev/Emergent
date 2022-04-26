@@ -3,56 +3,55 @@
 #include <string.h>
 #include <string>
 #include <map>
-
+#include <charconv>
 static std::string identifier, string;    
 static float decimal;    
 static int integer, line, column;
 
-lexer::TOKEN lexer::getToken(FILE *file) {
-  int prev = ' ';
-  int next = ' ';
 
-  // Moves pointer forward, storing it in prev.
-  auto nextToken = [&] () {
-    column++;
-    prev = getc(file);
-  };
+static int prev = ' ';
+static int next = ' ';
 
-  // Stores the character ahead of the pointer in next.
-  auto lookahead = [&] () {
+// Moves pointer forward, storing it in prev.
+void nextToken(FILE *file) {
+  column++;
+  prev = getc(file);
+}
+
+// Stores the character ahead of the pointer in next.
+void lookAhead(FILE *file) {
     column++;
     next = getc(file);
-  };
+}
 
-  // Iterates through all digits, returning the strings.
-  auto iter_digits = [&] () {
-    std::string number;
-    do {
-      number += prev;
-      nextToken();
-    } while (isdigit(prev));
-    return number;
-  };
+// Iterates through all digits, returning the string.
+std::string iterDigits(FILE *file) {
+  std::string number;
+  do {
+    number += prev;
+    nextToken(file);
+  } while(isdigit(prev));
+  return number;
+}
 
-
-
+lexer::TOKEN lexer::getToken(FILE *file) {
   // Moves pointer over all whitespace.
   while(isspace(prev)) {
     if(prev == '\r' || prev == '\n') {
       line++;
-      column = 1;
+      column = 0;
     }
-    nextToken();
+    nextToken(file);
   }
 
   // Indicates a keyword or id is next.
   if(isalpha(prev) || (prev == '_')) {
     identifier = prev;
-    nextToken();
+    nextToken(file);
 
     while(isalnum(prev) || prev == '_') {
       identifier += prev;
-      nextToken();
+      nextToken(file);
     }
 
     // Maps the read string to the Token keyword.
@@ -61,7 +60,6 @@ lexer::TOKEN lexer::getToken(FILE *file) {
     keywords["model"] = MODEL;
     keywords["state"] = STATE;
     keywords["set"] = SET;
-    keywords["cell"] = CELL;
     keywords["all"] = ALL;
     keywords["default"] = DEFAULT;
     keywords["this"] = THIS;
@@ -79,70 +77,34 @@ lexer::TOKEN lexer::getToken(FILE *file) {
     return returnToken(identifier.c_str(), ID);
   }
 
-  if(prev == ':') {
-    nextToken();
-    return returnToken(":", COLON);
-  }
-  if(prev == '{') {
-    nextToken();
-    return returnToken("{", LBRACE);
-  }
-  if(prev == '}') {
-    nextToken();
-    return returnToken("}", RBRACE);
-  }
-  if(prev == '(') {
-    nextToken();
-    return returnToken("(", LPAREN);
-  }
-  if(prev == ')') {
-    nextToken();
-    return returnToken(")", RPAREN);
-  }
-  if(prev == ',') {
-    nextToken();
-    return returnToken(",", COMMA);
-  }
-  if(prev == '[') {
-    nextToken();
-    return returnToken("[", LSQUAR);
-  }
-  if(prev == ']') {
-    nextToken();
-    return returnToken("]", RSQUAR);
-  }
-  if(prev == '|') {
-    nextToken();
-    return returnToken("|", PIPE);
-  }
-
   if(isdigit(prev)) {
     // Returns the digits before the point.
-    std::string wholes = iter_digits();
+    std::string wholes = iterDigits(file);
+    
     integer = strtod(wholes.c_str(), nullptr);
 
     if(prev == '.') {
         // Returns digits after the point.
-        std::string fractions = iter_digits();
+        std::string fractions = iterDigits(file);
         decimal = strtof(fractions.c_str(), nullptr) + integer;
         return returnToken(wholes + '.' + fractions, DEC_LIT);
     } else {
         // Must be whole number, as there is no point.
-        return returnToken(wholes, INT_LIT);
+        return returnToken(wholes, NAT_LIT);
     }
   }
 
   if(prev == '.') {
     // Assumed to be fraction <1.
-    std::string fractions = iter_digits();
+    std::string fractions = iterDigits(file);
     decimal = strtof(fractions.c_str(), nullptr);
     return returnToken(fractions, DEC_LIT);
   }
 
   if(prev == '=') {
-    lookahead();
+    lookAhead(file);
     if (next == '=') {
-      nextToken();
+      nextToken(file);
       return returnToken("==", EQ);
     } else {
       prev = next;
@@ -150,9 +112,9 @@ lexer::TOKEN lexer::getToken(FILE *file) {
   }
 
   if(prev == '!') {
-    lookahead();
+    lookAhead(file);
     if (next == '=') {
-      nextToken();
+      nextToken(file);
       return returnToken("!=", NE);
     } else {
       prev = next;
@@ -160,9 +122,9 @@ lexer::TOKEN lexer::getToken(FILE *file) {
   }
 
   if(prev == '<') {
-    lookahead();
+    lookAhead(file);
     if (next == '=') {
-      nextToken();
+      nextToken(file);
       return returnToken("<=", LE);
     } else {
       prev = next;
@@ -171,22 +133,23 @@ lexer::TOKEN lexer::getToken(FILE *file) {
   }
 
   if (prev == '>') {
-    lookahead();
+    lookAhead(file);
     if (next == '=') {
-      nextToken();
+      nextToken(file);
       return returnToken(">=", GE);
     } else {
       prev = next;
       return returnToken(">", GT);
     }
   }
+  
 
   if (prev == '/') {
-    nextToken();
+    nextToken(file);
     if (prev == '/') {
       // Treats the rest of the line like whitespace.
       do {
-        nextToken();
+        nextToken(file);
       } while (!(prev == '\n' || prev == '\r' || prev == EOF));
 
       if (prev != EOF) {
@@ -203,11 +166,10 @@ lexer::TOKEN lexer::getToken(FILE *file) {
     column++;
     return returnToken("EOF", END_OF_FILE);
   }
-
   // If no other cases suit, return the character as its ascii value.
   int character = prev;
+  nextToken(file);
   std::string char_string(1, character);
-  nextToken();
   return returnToken(char_string, (lexer::TOKEN_TYPE) character);
 }
 

@@ -46,7 +46,7 @@ using namespace llvm::sys;
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                      const ast::Node &ast) {
-  os << ast.to_string();
+  os << ast.ast();
   return os;
 }
 
@@ -59,28 +59,27 @@ int main(int argc, char **argv) {
     std::cout << "Usage: ./code InputFile\n";
     return 1;
   }
-  bool flag = parser::registerFile(argv[1]);
+  bool flag = parser::openFile(argv[1]);
   if(flag) {
     perror("Error opening file.");
   }
 
-  ast::load_module();
+  ast::loadModule();
 
   // Parser is ran.
   fprintf(stderr, "Parsing Source...\n");
   auto program = parser::ParseProgram();
-  fprintf(stderr, "Parsing Finished!\n");
-
   //Print AST using post order traversal
   if(!program) {
     parser::closeFile();
     return 0;
   }
+  fprintf(stderr, "Parsing Finished!\n");
   fprintf(stderr, "Printing AST...\n");
-  llvm::outs() << program.get()->to_string();
+  llvm::outs() << program.get()->ast();
   fprintf(stderr, "AST Printed!\n");
 
-  if(ast::print_ir()) {
+  if(ast::printIR()) {
     return 1;
   }
 

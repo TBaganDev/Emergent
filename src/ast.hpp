@@ -37,8 +37,8 @@ namespace ast {
   class Node {
     public:
       virtual ~Node();
-      // Returns the string conversion of the node.
-      virtual std::string to_string() const;
+      // Returns the string conversion of the AST.
+      virtual std::string ast() const;
       // Generates code given the AST.
       virtual Value *codegen() = 0;
   };
@@ -46,13 +46,13 @@ namespace ast {
   // Series of nodes, which are evaluated sequentially (left to right).
   class Series : public Node {
     private:
-      std::vector<std::shared_ptr<Node>> nodes;
+      std::vector<std::shared_ptr<Node>> items;
     public:
       Series(
-        std::vector<std::shared_ptr<Node>> nodes
-      ) : nodes(std::move(nodes)) {};
+        std::vector<std::shared_ptr<Node>> items
+      ) : items(std::move(items)) {};
       Series() {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value *codegen();
   };
 
@@ -67,8 +67,8 @@ namespace ast {
         std::shared_ptr<Node> neighbourhoods
       ) : models(std::move(models)),
           neighbourhoods(std::move(neighbourhoods)) {};
-      Program() : {};
-      virtual std::string to_string() const;
+      Program() {};
+      virtual std::string ast() const;
       virtual Value *codegen();
   };
 
@@ -86,7 +86,7 @@ namespace ast {
       ) : model_id(model_id),
           neighbourhood_id(neighbourhood_id),
           states(std::move(states)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value *codegen();
   };
 
@@ -107,7 +107,7 @@ namespace ast {
         std::shared_ptr<Node> predicate
       ) : id(id),
           predicate(std::move(predicate)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value *codegen();
   };
 
@@ -125,7 +125,7 @@ namespace ast {
       ) : id(id),
           dimensions(dimensions),
           neighbours(std::move(neighbours)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value *codegen();
   };
 
@@ -137,9 +137,9 @@ namespace ast {
       Neighbour(
         const std::string &id,
         std::shared_ptr<Node> coordinate
-      ) : id(id).
-          vector(std::move(vecctor)) {};
-      virtual std::string to_string() const;
+      ) : id(id),
+          coordinate(std::move(coordinate)) {};
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
 
@@ -151,36 +151,36 @@ namespace ast {
     public:
       Expression(
         std::shared_ptr<Node> left,
-        int op,
+        TOKEN_TYPE operation,
         std::shared_ptr<Node> right
       ) : left(std::move(left)),
-          operation(op),
+          operation(operation),
           right(std::move(right)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
 
   // Represents a cell relative to THIS.
   class Coordinate : public Node {
     private:
-      std::share_ptr<Node> vector;
+      std::shared_ptr<Node> vector;
     public:
       Coordinate(
         std::shared_ptr<Node> vector
       ) : vector(std::move(vector)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value *codegen();
   };
 
   // Represents the integer literal.
   class Integer : public Node  {
     private:
-      int16_t value;
+      int value;
     public:
       Integer(
-        int16_t value
+        int value
       ) : value(value) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
   
@@ -192,7 +192,7 @@ namespace ast {
       Decimal(
         float value
       ) : value(value) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
 
@@ -204,7 +204,7 @@ namespace ast {
       Identifier(
         const std::string &id
       ) : id(id) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
 
@@ -216,7 +216,7 @@ namespace ast {
       Negation(
         std::shared_ptr<Node> value
       ) : value(std::move(value)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
 
@@ -228,15 +228,15 @@ namespace ast {
       Negative(
         std::shared_ptr<Node> value
       ) : value(std::move(value)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
 
   // Counts the amount of returned cells in set.
   class Cardinality : public Node {
     private:
-      // If empty, ANY keyword was used.
       std::string variable;
+      // If nullptr, ANY keyword was used.
       std::shared_ptr<Node> coords;
       std::shared_ptr<Node> predicate;
     public:
@@ -247,7 +247,7 @@ namespace ast {
       ) : variable(variable),
           coords(std::move(coords)),
           predicate(std::move(predicate)) {};
-      virtual std::string to_string() const;
+      virtual std::string ast() const;
       virtual Value * codegen();
   };
 };

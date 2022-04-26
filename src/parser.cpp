@@ -18,6 +18,7 @@
 
 using namespace lexer;
 using namespace ast;
+using namespace parser;
 
 FILE *source;
 static std::deque<TOKEN> token_buffer;
@@ -33,9 +34,10 @@ void parser::closeFile() {
   fclose(source);
 }
 
+// Pops the next token from the stack.
 void nextToken() {
   if(token_buffer.empty()) {
-    token_buffer.push_back(getTok(source));
+    token_buffer.push_back(getToken(source));
   }
 
   TOKEN temp = token_buffer.front();
@@ -44,33 +46,35 @@ void nextToken() {
   return;
 }
 
-void prevToken(TOKEN tok) {
+// Pushes back the previous token, resetting the token to prev argument.
+void prevToken(TOKEN prev) {
   token_buffer.push_front(token);
-  token = tok;
+  token = prev;
 }
 
-void ParsingError(const char *string) {
-  fprintf(stderr, "Parsing Error:\n")
-  fprintf(stderr, ">>> Expected %s.\n", string);
+// Outputs parsing error to terminal.
+void ParsingError(std::string caller, std::string error) {
+  fprintf(stderr, "Parsing Error: %s\n", caller.c_str());
+  fprintf(stderr, ">>> Expected %s.\n", error.c_str());
   fprintf(stderr, "Instead Got: \'%s\'.\n", token.lexeme.c_str());
-  fprintf(stderr, "On Line %d, ", token.lineNo);
-  fprintf(stderr, "On Column %d\n", token.columnNo);
+  fprintf(stderr, "On Line %d, ", token.line);
+  fprintf(stderr, "On Column %d\n", token.column);
 }
 
 std::shared_ptr<Node> parser::BinaryParsing(
-  std::shared_ptr<Node> *(parse_function)(),
+  std::shared_ptr<Node> (parse_function)(),
   std::vector<TOKEN_TYPE> first_set,
   std::vector<TOKEN_TYPE> follow_set,
   std::string error_message
 ) {
-  auto left = parse_function();
+  auto left =  parse_function();
   if(!left) {
     return nullptr;
   }
   TOKEN temp = token;
   nextToken(); //Lookahead required to determine if next token in follow set or first set
   if(std::find(first_set.begin(), first_set.end(), token.type) != first_set.end()) {
-    lexer::TOKEN_TYPE op = token.type;
+    TOKEN_TYPE op = (TOKEN_TYPE) token.type;
     nextToken();
     auto right = parse_function();
     if(!right) {
@@ -82,12 +86,12 @@ std::shared_ptr<Node> parser::BinaryParsing(
     return left;
   }
 
-  ParsingError(error_message);
+  ParsingError("Binary", error_message);
   return nullptr;
 }
 
 std::shared_ptr<Node> parser::SeriesParsing(
-  std::shared_ptr<Node> *(parse_function)(),
+  std::shared_ptr<Node> (parse_function)(),
   std::vector<TOKEN_TYPE> first_set,
   std::vector<TOKEN_TYPE> follow_set,
   std::string error_message,
@@ -102,22 +106,23 @@ std::shared_ptr<Node> parser::SeriesParsing(
     }
     series.push_back(std::move(item));
     //Lookahead required to determine if next token in follow set or first set
-    nextToken(); 
+    temp = token;
+    nextToken();
     if(seperator != ERROR) {
-      if(token.type != seperator) {
+      if(seperator != (TOKEN_TYPE) token.type) {
         break;
       }
       nextToken();
+      temp = token;
     }
-    temp = token;
   } while(std::find(first_set.begin(), first_set.end(), token.type) != first_set.end());
   
   if(std::find(follow_set.begin(), follow_set.end(), token.type) != follow_set.end()) {
     prevToken(temp);
     return std::make_shared<Series>(std::move(series));
   }
-
-  ParsingError(error_message);
+  prevToken(temp);
+  ParsingError("Series", error_message);
   return nullptr;
 };
 
@@ -127,13 +132,13 @@ std::shared_ptr<Node> parser::ParseProgram() {
   std::vector<std::shared_ptr<Node>> neighbourhoods;
   do {
     if(token.type == MODEL) {
-      auto model = ParseModel();
+      auto model = parser::ParseModel();
       if(!model) {
         return nullptr;
       }
       models.push_back(std::move(model));
     } else if (token.type == NEIGHBOURHOOD) {
-      auto neighbourhood = ParseNeighbourhood();
+      auto neighbourhood = parser::ParseNeighbourhood();
       if(!neighbourhood) {
         return nullptr;
       }
@@ -142,7 +147,7 @@ std::shared_ptr<Node> parser::ParseProgram() {
     nextToken();
   } while(token.type == MODEL || token.type == NEIGHBOURHOOD);
   if(models.empty() && neighbourhoods.empty()) {
-    ParsingError("\'model\' or \'neighbourhood\'");
+    ParsingError("Program", "\'model\' or \'neighbourhood\'");
     return nullptr;
   }
   auto models_series = std::make_shared<Series>(models);
@@ -152,39 +157,39 @@ std::shared_ptr<Node> parser::ParseProgram() {
 
 std::shared_ptr<Node> parser::ParseModel() {
   if(token.type != MODEL) {
-    ParsingError("\'model\'");
+    ParsingError("Model", "\'model\'");
     return nullptr;
   }
   nextToken();
   if(token.type != ID) {
-    ParsingError("identifier");
+    ParsingError("Model", "identifier");
     return nullptr;
   }
   std::string model_id = token.lexeme;
   nextToken();
   if(token.type != COLON) {
-    ParsingError("\':\'");
+    ParsingError("Model", "\':\'");
     return nullptr;
   }
   nextToken();
   if(token.type != ID) {
-    ParsingError("identifier");
+    ParsingError("Model", "identifier");
     return nullptr;
   }
   std::string neighbourhood_id = token.lexeme;
   nextToken();
   if(token.type != LBRACE) {
-    ParsingError("\'{\'");
+    ParsingError("Model", "\'{\'");
     return nullptr;
   }
   nextToken();
-  auto states = ParseStates();
+  auto states = parser::ParseStates();
   if(!states) {
     return nullptr;
   }
   nextToken();
   if(token.type != RBRACE) {
-    ParsingError("\'}\'");
+    ParsingError("Model", "\'}\'");
     return nullptr;
   }
   return std::make_shared<Model>(model_id, neighbourhood_id, states);
@@ -192,139 +197,159 @@ std::shared_ptr<Node> parser::ParseModel() {
 
 std::shared_ptr<Node> parser::ParseNeighbourhood() {
   if(token.type != NEIGHBOURHOOD) {
-    ParsingError("\'neighbourhood\'");
+    ParsingError("Neighbourhood", "\'neighbourhood\'");
     return nullptr;
   }
   nextToken();
   if(token.type != ID) {
-    ParsingError("identifier");
+    ParsingError("Neighbourhood", "identifier");
     return nullptr;
   }
   std::string id = token.lexeme;
   nextToken();
   if(token.type != COLON) {
-    ParsingError("\':\'");
+    ParsingError("Neighbourhood", "\':\'");
     return nullptr;
   }
   nextToken();
-  if(token.type != INT_LIT) {
-    ParsingError("integer literal");
+  if(token.type != NAT_LIT) {
+    ParsingError("Neighbourhood", "natural literal");
     return nullptr;
   }
   int dimensions = std::stoi(token.lexeme);
   nextToken();
   if(token.type != LBRACE) {
-    ParsingError("\'{\'");
+    ParsingError("Neighbourhood", "\'{\'");
     return nullptr;
   }
   nextToken();
-  auto neighbours = ParseNeighbours();
+  auto neighbours = parser::ParseNeighbours();
   if(!neighbours) {
     return nullptr;
   }
   nextToken();
   if(token.type != RBRACE) {
-    ParsingError("\'}\'");
+    ParsingError("Neighbourhood", "\'}\'");
     return nullptr;
   }
   return std::make_shared<Neighbourhood>(id, dimensions, neighbours);
 }
 
 std::shared_ptr<Node> parser::ParseNeighbours() {
-  vector<TOKEN_TYPE> first_set = {COMMA};
-  vector<TOKEN_TYPE> follow_set = {RBRACE};
-  return SeriesParsing(parser::ParseNeighbour,first_set, follow_set, "\'}\'",ERROR);
+  std::vector<TOKEN_TYPE> first_set = {ID, LSQUAR};
+  std::vector<TOKEN_TYPE> follow_set = {RBRACE};
+  return parser::SeriesParsing(&parser::ParseNeighbour,first_set, follow_set, "\'}\'",COMMA);
 }
 
 std::shared_ptr<Node> parser::ParseNeighbour() {
   std::string id;
   if(token.type == ID) {
     id = token.lexeme;
+    nextToken();
   }
-  nextToken();
-  auto coordinate = ParseCoordinate();
+  auto coordinate = parser::ParseCoordinate();
   if(!coordinate) {
     return nullptr;
   }
-  return std::make_shared<Coordinate>(id, coordinate);
+  return std::make_shared<Neighbour>(id, coordinate);
 }
 
 std::shared_ptr<Node> parser::ParseStates() {
-  vector<TOKEN_TYPE> first_set = {DEFAULT, STATE};
-  vector<TOKEN_TYPE> follow_set = {RBRACE};
-  return SeriesParsing(parser::ParseState, first_set, follow_set, "\'}\'", ERROR);
+  std::vector<TOKEN_TYPE> first_set = {DEFAULT, STATE};
+  std::vector<TOKEN_TYPE> follow_set = {RBRACE};
+  return parser::SeriesParsing(&parser::ParseState, first_set, follow_set, "\'}\'", ERROR);
 }
 
 std::shared_ptr<Node> parser::ParseState() {
   if(token.type == DEFAULT) {
     nextToken();
     if(token.type != STATE) {
-      ParsingError("\'state\'");
+      ParsingError("State", "\'state\'");
       return nullptr;
     }
     nextToken();
     if(token.type != ID) {
-      ParsingError("identifier");
+      ParsingError("State", "identifier");
       return nullptr;
     }
     return std::make_shared<State>(true, token.lexeme);
   } else if(token.type == STATE) {
     nextToken();
     if(token.type != ID) {
-      ParsingError("identifier");
+      ParsingError("State", "identifier");
       return nullptr;
     }
     std::string id = token.lexeme;
+    nextToken();
+    if(token.type != LBRACE) {
+      ParsingError("State", "\'{\'");
+      return nullptr;
+    }
+    nextToken();
+    if(token.type == RBRACE) {
+      return std::make_shared<State>(false, id);
+    } else {
+      auto predicate = ParsePredicate();
+      if(!predicate) {
+        return nullptr;
+      }
+      nextToken();
+      if(token.type != RBRACE) {
+        ParsingError("State", "\'}\'");
+        return nullptr;
+      }
+      return std::make_shared<State>(id, predicate);
+    }
   }
-  ParsingError("\'default\' or \'state\'");
+  ParsingError("State", "\'default\' or \'state\'");
   return nullptr;
 }
 
 std::shared_ptr<Node> parser::ParsePredicate() {
-  vector<TOKEN_TYPE> first_set = {OR};
-  vector<TOKEN_TYPE> follow_set = {RBRACE, PIPE, RPAREN};
-  return BinaryParsing(parser::ParseExDisjunction(), first_set, follow_set, "\'}\', \'|\' or \')\'");
+  std::vector<TOKEN_TYPE> first_set = {OR};
+  std::vector<TOKEN_TYPE> follow_set = {RBRACE, PIPE, RPAREN};
+  return parser::BinaryParsing(&parser::ParseExDisjunction, first_set, follow_set, "\'}\', \'|\' or \')\'");
 }
 
 std::shared_ptr<Node> parser::ParseExDisjunction() {
-  vector<TOKEN_TYPE> first_set = {XOR};
-  vector<TOKEN_TYPE> follow_set = {OR, RBRACE, PIPE, RPAREN};
-  return BinaryParsing(parser::ParseExDisjunction(), first_set, follow_set, 
+  std::vector<TOKEN_TYPE> first_set = {XOR};
+  std::vector<TOKEN_TYPE> follow_set = {OR, RBRACE, PIPE, RPAREN};
+  return parser::BinaryParsing(&parser::ParseConjucation, first_set, follow_set, 
     "\'or\', \'}\', \'|\' or \')\'");
 }
 
 std::shared_ptr<Node> parser::ParseConjucation() {
-  vector<TOKEN_TYPE> first_set = {AND};
-  vector<TOKEN_TYPE> follow_set = {XOR, OR, RBRACE, PIPE, RPAREN};
-  return BinaryParsing(parser::ParseExDisjunction(), first_set, follow_set, 
+  std::vector<TOKEN_TYPE> first_set = {AND};
+  std::vector<TOKEN_TYPE> follow_set = {XOR, OR, RBRACE, PIPE, RPAREN};
+  return parser::BinaryParsing(&parser::ParseEquivalence, first_set, follow_set, 
     "\'xor\', \'or\', \'}\', \'|\' or \')\'");
 }
 
 std::shared_ptr<Node> parser::ParseEquivalence() {
-  vector<TOKEN_TYPE> first_set = {EQ, NE};
-  vector<TOKEN_TYPE> follow_set = {AND, XOR, OR, RBRACE, PIPE, RPAREN};
-  return BinaryParsing(parser::ParseExDisjunction(), first_set, follow_set,
+  std::vector<TOKEN_TYPE> first_set = {EQ, NE};
+  std::vector<TOKEN_TYPE> follow_set = {AND, XOR, OR, RBRACE, PIPE, RPAREN};
+  return parser::BinaryParsing(&parser::ParseRelation, first_set, follow_set,
     "\'and\', \'xor\', \'or\', \'}\', \'|\' or \')\'");
 }
 
 std::shared_ptr<Node> parser::ParseRelation() {
-  vector<TOKEN_TYPE> first_set = {LE, LT, GE, GT};
-  vector<TOKEN_TYPE> follow_set = {EQ, NE, AND, XOR, OR, RBRACE, PIPE, RPAREN};
-  return BinaryParsing(parser::ParseExDisjunction(), first_set, follow_set, 
+  std::vector<TOKEN_TYPE> first_set = {LE, LT, GE, GT};
+  std::vector<TOKEN_TYPE> follow_set = {EQ, NE, AND, XOR, OR, RBRACE, PIPE, RPAREN};
+  return parser::BinaryParsing(&parser::ParseTranslation, first_set, follow_set, 
     "\'==\', \'!=\', \'and\', \'xor\', \'or\', \'}\', \'|\' or \')\'");
 }
 
 std::shared_ptr<Node> parser::ParseTranslation() {
-  vector<TOKEN_TYPE> first_set = {ADD, SUB};
-  vector<TOKEN_TYPE> follow_set = {LE, LT, GE, GT, EQ, NE, AND, XOR, OR, RBRACE, PIPE, RPAREN};
-  return BinaryParsing(parser::ParseExDisjunction(), first_set, follow_set, 
+  std::vector<TOKEN_TYPE> first_set = {ADD, SUB};
+  std::vector<TOKEN_TYPE> follow_set = {LE, LT, GE, GT, EQ, NE, AND, XOR, OR, RBRACE, PIPE, RPAREN};
+  return parser::BinaryParsing(&parser::ParseScaling, first_set, follow_set, 
     "\'<=\', \'<\', \'>=\', \'>\', \'==\', \'!=\', \'and\', \'xor\', \'or\', \'}\', \'|\' or \')\'");
 }
 
 std::shared_ptr<Node> parser::ParseScaling() {
-  vector<TOKEN_TYPE> first_set = {MULT, DIV, MOD};
-  vector<TOKEN_TYPE> follow_set = {ADD, SUB, LE, LT, GE, GT, EQ, NE, AND, XOR, OR, RBRACE, PIPE, RPAREN};
-  return BinaryParsing(parser::ParseExDisjunction(), first_set, follow_set, 
+  std::vector<TOKEN_TYPE> first_set = {MULT, DIV, MOD};
+  std::vector<TOKEN_TYPE> follow_set = {ADD, SUB, LE, LT, GE, GT, EQ, NE, AND, XOR, OR, RBRACE, PIPE, RPAREN};
+  return parser::BinaryParsing(&parser::ParseElement, first_set, follow_set, 
     "\'-\', \'+\', \'<=\', \'<\', \'>=\', \'>\', \'==\', \'!=\', \'and\', \'xor\', \'or\', \'}\', \'|\' or \')\'");
 }
 
@@ -332,10 +357,10 @@ std::shared_ptr<Node> parser::ParseScaling() {
 std::shared_ptr<Node> parser::ParseElement() {
   if(token.type == SUB || token.type == NOT) {
     // Negation or Negative
-    TOKEN_TYPE type = token.type;
+    TOKEN_TYPE type = (TOKEN_TYPE) token.type;
     nextToken();
-    auto element = ParseElement();
-    if(!element)) {
+    auto element = parser::ParseElement();
+    if(!element) {
       return nullptr;
     }
     if(type == SUB) {
@@ -346,12 +371,12 @@ std::shared_ptr<Node> parser::ParseElement() {
   if(token.type == LPAREN) {
     // Sub-Expression
     nextToken();
-    auto predicate = ParsePredicate();
+    auto predicate = parser::ParsePredicate();
     if(!predicate) {
       return nullptr;
     }
     if(token.type != RPAREN) {
-      ParsingError("\')\'");
+      ParsingError("Element", "\')\'");
       return nullptr;
     }
     return predicate; 
@@ -359,68 +384,63 @@ std::shared_ptr<Node> parser::ParseElement() {
   if(token.type == PIPE) {
     // Cardinality
     nextToken();
-    if(token.type != SET) {
-      auto set = ParseSet();
+    if(token.type == SET) {
+      auto set = parser::ParseSet();
       if(!set) {
         return nullptr;
       }
       nextToken();
       if(token.type != PIPE) {
-        ParsingError("\'|\'");
+        ParsingError("Element", "\'|\'");
         return nullptr;
       }
       return set;
     }
   }
   switch(token.type) {
-    case LSQUAR: return ParseCoordinate();
-    case INT_LIT: return std::make_shared<Integer>(std::stoi(token.lexeme));
+    case LSQUAR: return parser::ParseCoordinate();
+    case NAT_LIT: return std::make_shared<Integer>(std::stoi(token.lexeme));
     case DEC_LIT: return std::make_shared<Decimal>(std::stof(token.lexeme));
     case ID:
     case THIS: return std::make_shared<Identifier>(token.lexeme);
   }
-  ParsingError("\'-\', \'not\', \'(\', \'[\', \'|\', \'this\', identifier, integer literal or decimal literal");
+  ParsingError("Element", "\'-\', \'not\', \'(\', \'[\', \'|\', \'this\', identifier, natural literal or decimal literal");
   return nullptr;
 }
 
 std::shared_ptr<Node> parser::ParseSet() {
   if(token.type != SET) {
-    ParsingError("\'set\'");
+    ParsingError("Set", "\'set\'");
     return nullptr;
   }
   nextToken();
   if(token.type != ID) {
-    ParsingError("\'identifier\'");
+    ParsingError("Set", "\'identifier\'");
     return nullptr;
   }
   std::string variable = token.lexeme;
   nextToken();
   if(token.type != IN) {
-    ParsingError("\'in\'");
+    ParsingError("Set", "\'in\'");
     return nullptr;
   }
   nextToken();
-  if(token.type != COLON) {
-    ParsingError("\':\'");
-    return nullptr;
-  }  
-  nextToken();
   std::shared_ptr<Node> coordinates;
   if(token.type == ALL) {
-    coordinates = std::make_shared<Series>();
+    coordinates = nullptr;
   } else {
-    coordinates = ParseCoordinates();
+    coordinates = parser::ParseCoordinates();
     if(!coordinates) {
       return nullptr;
     }
   }
   nextToken();
   if(token.type != COLON) {
-    ParsingError("\':\'");
+    ParsingError("Set", "\':\'");
     return nullptr;
   }
   nextToken();
-  auto predicate = ParsePredicate();
+  auto predicate = parser::ParsePredicate();
   if(!predicate) {
     return nullptr;
   }
@@ -429,39 +449,43 @@ std::shared_ptr<Node> parser::ParseSet() {
 
 std::shared_ptr<Node> parser::ParseCoordinate() {
   if(token.type != LSQUAR) {
-    ParsingError("\'[\'");
+    ParsingError("Coordinate", "\'[\'");
     return nullptr;
   }
   nextToken();
-  auto vector = ParseVector();
+  auto vector = parser::ParseVector();
   if(!vector) {
     return nullptr;
   }
   nextToken();
   if(token.type != RSQUAR) {
-    ParsingError("\']\'");
+    ParsingError("Coordinate", "\']\'");
     return nullptr;
   }
   return std::make_shared<Coordinate>(vector);
 }
 
-// Function performs the parse for embedded integer literals in series.
-std::shared_ptr<Node> ParseInteger() {
-  if(token.type != INT_LIT) {
-    ParsingError("integer literal");
+std::shared_ptr<Node> parser::ParseInteger() {
+  int factor = 1;
+  if(token.type == SUB) {
+    factor = -1;
+    nextToken();
+  }
+  if(token.type != NAT_LIT) {
+    ParsingError("Integer", "\'-\' or natural literal");
     return nullptr;
   }
-  return std::make_shared<Integer>(std::stoi(token.lexeme));
+  return std::make_shared<Integer>(factor * std::stoi(token.lexeme));
 }
 
 std::shared_ptr<Node> parser::ParseVector() {
-  std::vector<TOKEN_TYPE> first_set = {INT_LIT};
-  std::vector<TOKEN_TYPE> follow_set = {RBRACE};
-  return SeriesParsing(ParseInteger, first_set, follow_set, "\'}\'", COMMA);
+  std::vector<TOKEN_TYPE> first_set = {SUB, NAT_LIT};
+  std::vector<TOKEN_TYPE> follow_set = {RSQUAR};
+  return parser::SeriesParsing(&parser::ParseInteger, first_set, follow_set, "\']\'", COMMA);
 }
 
 std::shared_ptr<Node> parser::ParseCoordinates() {
   std::vector<TOKEN_TYPE> first_set = {LSQUAR};
   std::vector<TOKEN_TYPE> follow_set = {COLON};
-  return SeriesParsing(parser::ParseCoordinate, first_set, follow_set, "\':\'",COMMA);
+  return parser::SeriesParsing(&parser::ParseCoordinate, first_set, follow_set, "\':\'",COMMA);
 }

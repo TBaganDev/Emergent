@@ -28,7 +28,7 @@ namespace parser {
    std::shared_ptr<Node> ParseModel();
 
    /*
-      neighbourhood -> NEIGHBOURHOOD ID COLON INT_LIT LBRACE neighbours RBRACE
+      neighbourhood -> NEIGHBOURHOOD ID COLON NAT_LIT LBRACE neighbours RBRACE
    */
    std::shared_ptr<Node> ParseNeighbourhood();
 
@@ -118,7 +118,7 @@ namespace parser {
       element -> SUB element
       element -> NOT element
       element -> LPAREN pred RPAREN
-      element -> INT_LIT
+      element -> NAT_LIT
       element -> DEC_LIT
       element -> PIPE set PIPE
       element -> THIS
@@ -139,8 +139,14 @@ namespace parser {
    std::shared_ptr<Node> ParseCoordinate();
 
    /*
-      vector -> INT_LIT vector_tail
-      vector_tail -> COMMA INT_LIT vector_tail
+      int -> NAT_LIT
+      int -> SUB NAT_LIT
+   */
+   std::shared_ptr<Node> ParseInteger();
+
+   /*
+      vector -> NAT_LIT vector_tail
+      vector_tail -> COMMA NAT_LIT vector_tail
       vector_tail -> Ɛ
    */
    std::shared_ptr<Node> ParseVector();
@@ -155,7 +161,7 @@ namespace parser {
    // Performs the common binary parsing pattern, useful for abstracting binary operations.
    // Sends an error message if a token in the follow_set and first_set isn't found.
    std::shared_ptr<Node> BinaryParsing(
-      std::shared_ptr<Node> *(parse_function)(), 
+      std::shared_ptr<Node> (parse_function)(), 
       std::vector<TOKEN_TYPE> first_set, 
       std::vector<TOKEN_TYPE> follow_set,
       std::string error_message
@@ -165,7 +171,7 @@ namespace parser {
    // Sends an error message if a token in the follow_set isn't found.
    // NOTE: An ERROR token seperator means no seperator is decided.
    std::shared_ptr<Node> SeriesParsing(
-      std::shared_ptr<Node> *(parse_function)(), 
+      std::shared_ptr<Node> (parse_function)(), 
       std::vector<TOKEN_TYPE> first_set, 
       std::vector<TOKEN_TYPE> follow_set,
       std::string error_message,

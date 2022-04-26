@@ -16,14 +16,13 @@ namespace lexer {
     MODEL = -3,         // Model "model"
     STATE = -4,         // State "state"
     SET = -5,           // Collection/Set "set"
-    CELL = -6,          // Cell iterated over "cell"
     ALL = -7,           // All Neighbours "all"
     DEFAULT = -8,       // Default Tag "default"
     THIS = -9,          // Cell pointed to "this"
     IN = -10,           // Indicator for aggratation "in"
 
     // Literals
-    INT_LIT = -11, // Integer [0-9]+
+    NAT_LIT = -11, // Integer [0-9]+
     DEC_LIT = -12, // Rational [0-9]+.[0-9]+
 
     // Logical operators

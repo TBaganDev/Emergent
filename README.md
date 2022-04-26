@@ -49,7 +49,7 @@ program_tail ->
 
 model -> MODEL ID COLON ID LBRACE states RBRACE
 
-neighbourhood -> NEIGHBOURHOOD ID COLON INT_LIT LBRACE neighbours RBRACE
+neighbourhood -> NEIGHBOURHOOD ID COLON NAT_LIT LBRACE neighbours RBRACE
 
 neighbours ->  neighbour neighbours_tail
 neighbours_tail -> COMMA neighbour neighbours_tail
@@ -104,7 +104,7 @@ scale_tail ->
 element -> SUB element
 element -> NOT element
 element -> LPAREN pred RPAREN
-element -> INT_LIT
+element -> NAT_LIT
 element -> DEC_LIT
 element -> PIPE set PIPE
 element -> THIS
@@ -116,13 +116,16 @@ set -> SET ID IN coords COLON pred
 
 coord -> LSQUAR vector RSQUAR
 
-vector -> INT_LIT vector_tail
-vector_tail -> COMMA INT_LIT vector_tail
+vector -> int vector_tail
+vector_tail -> COMMA int vector_tail
 vector_tail -> 
 
 coords -> coord coords_tail
 coords_tail -> COMMA coord coords_tail
 coords_tail -> 
+
+int -> NAT_LIT
+int -> SUB NAT_LIT
 ```
 
 ## Analysis of the Grammar
