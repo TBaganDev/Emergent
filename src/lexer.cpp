@@ -44,6 +44,22 @@ lexer::TOKEN lexer::getToken(FILE *file) {
     nextToken(file);
   }
 
+  // Indicates a single character
+  if(prev == '\'') {
+    nextToken(file);
+    std::string character(1, prev);
+    nextToken(file);
+    if(prev != '\'') {
+      std::string extra(1, prev);
+      character = character + extra;
+      // Erroneous Token Identified
+      nextToken(file);
+      return returnToken(character, ERROR);
+    }
+    nextToken(file);
+    return returnToken(character, CHAR);
+  }
+
   // Indicates a keyword or id is next.
   if(isalpha(prev) || (prev == '_')) {
     identifier = prev;
@@ -179,11 +195,11 @@ void lexer::resetLexer() {
 }
 
 static lexer::TOKEN lexer::returnToken(std::string lexeme, lexer::TOKEN_TYPE type) {
-  lexer::TOKEN token = {
+  lexer::TOKEN resulting_token = {
     type,
     lexeme,
     line,
     column - (int) (lexeme.length()) - 1
   };
-  return token;
+  return resulting_token;
 }

@@ -22,7 +22,6 @@ using namespace parser;
 
 FILE *source;
 static std::deque<TOKEN> token_buffer;
-static TOKEN token;
 
 bool parser::openFile(char * filename) {
   resetLexer();
@@ -53,12 +52,12 @@ void prevToken(TOKEN prev) {
 }
 
 // Outputs parsing error to terminal.
-void ParsingError(std::string caller, std::string error) {
+void parser::ParsingError(std::string caller, std::string error) {
   fprintf(stderr, "Parsing Error: %s\n", caller.c_str());
   fprintf(stderr, ">>> Expected %s.\n", error.c_str());
-  fprintf(stderr, "Instead Got: \'%s\'.\n", token.lexeme.c_str());
-  fprintf(stderr, "On Line %d, ", token.line);
-  fprintf(stderr, "On Column %d\n", token.column);
+  fprintf(stderr, "Instead got: \'%s\'.\n", token.lexeme.c_str());
+  fprintf(stderr, "Line %d, ", token.line);
+  fprintf(stderr, "Column %d.\n", token.column);
 }
 
 std::shared_ptr<Node> parser::BinaryParsing(
@@ -80,7 +79,7 @@ std::shared_ptr<Node> parser::BinaryParsing(
     if(!right) {
       return nullptr;
     }
-    return std::make_shared<Expression>(left, op, right);
+    return std::make_shared<Binary>(left, op, right);
   } else if(std::find(follow_set.begin(), follow_set.end(), token.type) != follow_set.end()) {
     prevToken(temp);
     return left;
@@ -90,14 +89,15 @@ std::shared_ptr<Node> parser::BinaryParsing(
   return nullptr;
 }
 
-std::shared_ptr<Node> parser::SeriesParsing(
-  std::shared_ptr<Node> (parse_function)(),
+template<typename T>
+std::shared_ptr<Series<T>> parser::SeriesParsing(
+  std::shared_ptr<T> (parse_function)(),
   std::vector<TOKEN_TYPE> first_set,
   std::vector<TOKEN_TYPE> follow_set,
   std::string error_message,
   TOKEN_TYPE seperator
 ) {
-  std::vector<std::shared_ptr<Node>> series;
+  std::vector<std::shared_ptr<T>> series;
   TOKEN temp;
   do {
     auto item = parse_function();
@@ -119,17 +119,17 @@ std::shared_ptr<Node> parser::SeriesParsing(
   
   if(std::find(follow_set.begin(), follow_set.end(), token.type) != follow_set.end()) {
     prevToken(temp);
-    return std::make_shared<Series>(std::move(series));
+    return std::make_shared<Series<T>>(std::move(series));
   }
   prevToken(temp);
   ParsingError("Series", error_message);
   return nullptr;
 };
 
-std::shared_ptr<Node> parser::ParseProgram() {
+std::shared_ptr<Program> parser::ParseProgram() {
   nextToken();
-  std::vector<std::shared_ptr<Node>> models;
-  std::vector<std::shared_ptr<Node>> neighbourhoods;
+  std::vector<std::shared_ptr<Model>> models;
+  std::vector<std::shared_ptr<Neighbourhood>> neighbourhoods;
   do {
     if(token.type == MODEL) {
       auto model = parser::ParseModel();
@@ -141,7 +141,7 @@ std::shared_ptr<Node> parser::ParseProgram() {
       auto neighbourhood = parser::ParseNeighbourhood();
       if(!neighbourhood) {
         return nullptr;
-      }
+      } 
       neighbourhoods.push_back(std::move(neighbourhood));
     }
     nextToken();
@@ -150,12 +150,10 @@ std::shared_ptr<Node> parser::ParseProgram() {
     ParsingError("Program", "\'model\' or \'neighbourhood\'");
     return nullptr;
   }
-  auto models_series = std::make_shared<Series>(models);
-  auto neighbourhood_series = std::make_shared<Series>(neighbourhoods);
-  return std::make_shared<Program>(models_series, neighbourhood_series);
+  return std::make_shared<Program>(models, neighbourhoods);
 }
 
-std::shared_ptr<Node> parser::ParseModel() {
+std::shared_ptr<Model> parser::ParseModel() {
   if(token.type != MODEL) {
     ParsingError("Model", "\'model\'");
     return nullptr;
@@ -195,7 +193,7 @@ std::shared_ptr<Node> parser::ParseModel() {
   return std::make_shared<Model>(model_id, neighbourhood_id, states);
 }
 
-std::shared_ptr<Node> parser::ParseNeighbourhood() {
+std::shared_ptr<Neighbourhood> parser::ParseNeighbourhood() {
   if(token.type != NEIGHBOURHOOD) {
     ParsingError("Neighbourhood", "\'neighbourhood\'");
     return nullptr;
@@ -235,13 +233,13 @@ std::shared_ptr<Node> parser::ParseNeighbourhood() {
   return std::make_shared<Neighbourhood>(id, dimensions, neighbours);
 }
 
-std::shared_ptr<Node> parser::ParseNeighbours() {
+std::shared_ptr<Series<Neighbour>> parser::ParseNeighbours() {
   std::vector<TOKEN_TYPE> first_set = {ID, LSQUAR};
   std::vector<TOKEN_TYPE> follow_set = {RBRACE};
-  return parser::SeriesParsing(&parser::ParseNeighbour,first_set, follow_set, "\'}\'",COMMA);
+  return parser::SeriesParsing<Neighbour>(&parser::ParseNeighbour,first_set, follow_set, "\'}\'",COMMA);
 }
 
-std::shared_ptr<Node> parser::ParseNeighbour() {
+std::shared_ptr<Neighbour> parser::ParseNeighbour() {
   std::string id;
   if(token.type == ID) {
     id = token.lexeme;
@@ -254,13 +252,13 @@ std::shared_ptr<Node> parser::ParseNeighbour() {
   return std::make_shared<Neighbour>(id, coordinate);
 }
 
-std::shared_ptr<Node> parser::ParseStates() {
+std::shared_ptr<Series<State>> parser::ParseStates() {
   std::vector<TOKEN_TYPE> first_set = {DEFAULT, STATE};
   std::vector<TOKEN_TYPE> follow_set = {RBRACE};
-  return parser::SeriesParsing(&parser::ParseState, first_set, follow_set, "\'}\'", ERROR);
+  return parser::SeriesParsing<State>(&parser::ParseState, first_set, follow_set, "\'}\'", ERROR);
 }
 
-std::shared_ptr<Node> parser::ParseState() {
+std::shared_ptr<State> parser::ParseState() {
   if(token.type == DEFAULT) {
     nextToken();
     if(token.type != STATE) {
@@ -272,7 +270,15 @@ std::shared_ptr<Node> parser::ParseState() {
       ParsingError("State", "identifier");
       return nullptr;
     }
-    return std::make_shared<State>(true, token.lexeme);
+    std::string id = token.lexeme;
+    nextToken();
+    if(token.type != CHAR) {
+      ParsingError("State", "any character surrounded by aprostrophies");
+      return nullptr;
+    }
+    char character = token.lexeme.at(0);
+
+    return std::make_shared<State>(true, id, character);
   } else if(token.type == STATE) {
     nextToken();
     if(token.type != ID) {
@@ -281,13 +287,19 @@ std::shared_ptr<Node> parser::ParseState() {
     }
     std::string id = token.lexeme;
     nextToken();
+    if(token.type != CHAR) {
+      ParsingError("State", "any character surrounded by aprostrophies");
+      return nullptr;
+    }
+    char character = token.lexeme.at(0);
+    nextToken();
     if(token.type != LBRACE) {
       ParsingError("State", "\'{\'");
       return nullptr;
     }
     nextToken();
     if(token.type == RBRACE) {
-      return std::make_shared<State>(false, id);
+      return std::make_shared<State>(false, id, character);
     } else {
       auto predicate = ParsePredicate();
       if(!predicate) {
@@ -298,7 +310,7 @@ std::shared_ptr<Node> parser::ParseState() {
         ParsingError("State", "\'}\'");
         return nullptr;
       }
-      return std::make_shared<State>(id, predicate);
+      return std::make_shared<State>(id, character, predicate);
     }
   }
   ParsingError("State", "\'default\' or \'state\'");
@@ -308,7 +320,8 @@ std::shared_ptr<Node> parser::ParseState() {
 std::shared_ptr<Node> parser::ParsePredicate() {
   std::vector<TOKEN_TYPE> first_set = {OR};
   std::vector<TOKEN_TYPE> follow_set = {RBRACE, PIPE, RPAREN};
-  return parser::BinaryParsing(&parser::ParseExDisjunction, first_set, follow_set, "\'}\', \'|\' or \')\'");
+  return parser::BinaryParsing(&parser::ParseExDisjunction, first_set, follow_set, 
+    "\'}\', \'|\' or \')\'");
 }
 
 std::shared_ptr<Node> parser::ParseExDisjunction() {
@@ -375,6 +388,7 @@ std::shared_ptr<Node> parser::ParseElement() {
     if(!predicate) {
       return nullptr;
     }
+    nextToken();
     if(token.type != RPAREN) {
       ParsingError("Element", "\')\'");
       return nullptr;
@@ -408,7 +422,7 @@ std::shared_ptr<Node> parser::ParseElement() {
   return nullptr;
 }
 
-std::shared_ptr<Node> parser::ParseSet() {
+std::shared_ptr<Cardinality> parser::ParseSet() {
   if(token.type != SET) {
     ParsingError("Set", "\'set\'");
     return nullptr;
@@ -425,7 +439,7 @@ std::shared_ptr<Node> parser::ParseSet() {
     return nullptr;
   }
   nextToken();
-  std::shared_ptr<Node> coordinates;
+  std::shared_ptr<Series<Coordinate>> coordinates;
   if(token.type == ALL) {
     coordinates = nullptr;
   } else {
@@ -447,7 +461,7 @@ std::shared_ptr<Node> parser::ParseSet() {
   return std::make_shared<Cardinality>(variable, coordinates, predicate);
 }
 
-std::shared_ptr<Node> parser::ParseCoordinate() {
+std::shared_ptr<Coordinate> parser::ParseCoordinate() {
   if(token.type != LSQUAR) {
     ParsingError("Coordinate", "\'[\'");
     return nullptr;
@@ -465,7 +479,7 @@ std::shared_ptr<Node> parser::ParseCoordinate() {
   return std::make_shared<Coordinate>(vector);
 }
 
-std::shared_ptr<Node> parser::ParseInteger() {
+std::shared_ptr<Integer> parser::ParseInteger() {
   int factor = 1;
   if(token.type == SUB) {
     factor = -1;
@@ -478,14 +492,14 @@ std::shared_ptr<Node> parser::ParseInteger() {
   return std::make_shared<Integer>(factor * std::stoi(token.lexeme));
 }
 
-std::shared_ptr<Node> parser::ParseVector() {
+std::shared_ptr<Series<Integer>> parser::ParseVector() {
   std::vector<TOKEN_TYPE> first_set = {SUB, NAT_LIT};
   std::vector<TOKEN_TYPE> follow_set = {RSQUAR};
-  return parser::SeriesParsing(&parser::ParseInteger, first_set, follow_set, "\']\'", COMMA);
+  return parser::SeriesParsing<Integer>(&parser::ParseInteger, first_set, follow_set, "\']\'", COMMA);
 }
 
-std::shared_ptr<Node> parser::ParseCoordinates() {
+std::shared_ptr<Series<Coordinate>> parser::ParseCoordinates() {
   std::vector<TOKEN_TYPE> first_set = {LSQUAR};
   std::vector<TOKEN_TYPE> follow_set = {COLON};
-  return parser::SeriesParsing(&parser::ParseCoordinate, first_set, follow_set, "\':\'",COMMA);
+  return parser::SeriesParsing<Coordinate>(&parser::ParseCoordinate, first_set, follow_set, "\':\'",COMMA);
 }

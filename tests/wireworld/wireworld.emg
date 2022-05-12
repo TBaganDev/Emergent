@@ -1,0 +1,22 @@
+neighbourhood moore : 2 {
+    NW [-1, 0], N [0, 1], NE [1, 1], 
+     W [-1, 0], E [1 , 0],
+    SW [-1, -1], S [0, -1], SE [1 , -1]
+}
+
+model wireworld : moore {
+    default state empty ' '
+
+    state electron_head 'H' {
+        |set cell in all: cell == electron_head| == 1 or
+        |set cell in all: cell == electron_head| == 2
+    }
+
+    state electron_tail '~' {
+        this == electron_head
+    }
+
+    state conductor '+' {
+        this == conductor
+    }
+}

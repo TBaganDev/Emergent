@@ -1,89 +1,97 @@
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include <algorithm>
-#include <cassert>
-#include <cctype>
-#include <cstdio>
-#include <cstdlib>
-#include <map>
 #include <iostream>
-#include <memory>
-#include <queue>
 #include <string.h>
 #include <string>
 #include <system_error>
-#include <utility>
-#include <vector>
-
+#include <algorithm>
 #include "ast.hpp"
 #include "parser.hpp"
 
-using namespace llvm;
-using namespace llvm::sys;
+bool verbose = false;
 
-//===----------------------------------------------------------------------===//
-// AST Printer
-//===----------------------------------------------------------------------===//
-
-inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                     const ast::Node &ast) {
-  os << ast.ast();
-  return os;
+// Only outputs a message iff a verbose option is given.
+void spit(std::string text) {
+  if(verbose) {
+    std::cout << text + "\n";
+  }
 }
 
-//===----------------------------------------------------------------------===//
-// Main driver code.
-//===----------------------------------------------------------------------===//
-
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cout << "Usage: ./code InputFile\n";
+  if(argc < 2) {
+    std::cout << "Error: Missing operand\nUsage: ./emergent [OPTION]... SOURCE.emg\n";
     return 1;
   }
-  bool flag = parser::openFile(argv[1]);
-  if(flag) {
-    perror("Error opening file.");
+  int top = argc - 1;
+  bool ast = false;
+  for(int i = 1; i < argc; i++) {
+    std::string option(argv[i]);
+    if(option == "-t") {
+      ast = true;
+    } else if(option == "-v") {
+      verbose = true;
+    } else if(option == "--help") {
+      std::cout << "Usage: ./emergent [OPTION]... SOURCE.emg\n"
+        "Compiles any *.emg Emergent source code into C++.\n\n" 
+        "All possible options:\n"
+        "   -t      Prints the parsed syntax tree.\n"
+        "   -v      Prints all the stages of the compiler\n"
+        "   --help  Displays this message.\n";
+      return 0;
+    } else if(i < top) {
+      std::cout << "Error: Unknown operand " + option + "\nUsage: ./emergent [OPTION]... SOURCE.emg\n";
+      return 1;
+    }
   }
 
-  ast::loadModule();
+  spit("Opening file...");
+  std::string name(argv[top]);
+  int i = name.find_last_of('.');
+  std::string type = name.substr(i, name.length() - i);
+  if(type != ".emg") {
+    std::cout << "Error: SOURCE file extension must be .emg\n";
+    return 1;
+  }
+
+  if(parser::openFile(argv[top])) {
+    perror("Error: Unable to open SOURCE file\n"); // Returns error for open() also
+    return 1;
+  }
+  spit("File has been opened!");
 
   // Parser is ran.
-  fprintf(stderr, "Parsing Source...\n");
+  spit("Parsing Source...\n");
   auto program = parser::ParseProgram();
   //Print AST using post order traversal
   if(!program) {
     parser::closeFile();
     return 0;
   }
-  fprintf(stderr, "Parsing Finished!\n");
-  fprintf(stderr, "Printing AST...\n");
-  llvm::outs() << program.get()->ast();
-  fprintf(stderr, "AST Printed!\n");
+  spit("Parsing Finished!\n");
+  if(ast) {
+    spit("Printing AST...\n");
+    std::cout << program->ast();
+    spit("AST Printed!\n");
+  }
+  parser::closeFile();
+  spit("Source file closed Successfully!");
+  spit("Code Generating...\n");
+  std::string code = program->codegen();
+  spit("Code Generation Successful!\n");
+  spit("Outputting object...\n");
 
-  if(ast::printIR()) {
+  std::string target = name.substr(0, i) + ".cpp";
+  FILE *object = fopen(target.c_str(), "w");
+  
+  if(object == NULL) {
+    perror("Error: Couldn't create object.cpp file.");
     return 1;
   }
 
+  if(false) {
+    
+  }
 
-  parser::closeFile();
+  fputs(code.c_str(), object);
+  fclose(object);
+  spit("Object file Successful!\n");
   return 0;
 }

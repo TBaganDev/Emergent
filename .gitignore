@@ -1,5 +1,5 @@
-output.ll
 bin
 run.bashrc
-tests/*/output.ll
+tests/*/*
+!tests/*/*.emg
 .vscode

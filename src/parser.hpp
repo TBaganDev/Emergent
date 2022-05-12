@@ -12,6 +12,9 @@ namespace parser {
    // Closes the source file.
    void closeFile();
 
+   // Outputs parsing error to terminal.
+   void ParsingError(std::string caller, std::string error);
+
    /*
       Returns the AST which represents the Program as a whole.
       program -> model program_tail
@@ -20,43 +23,43 @@ namespace parser {
       program_tail -> neighbourhood program_tail
       program_tail -> Ɛ
    */
-   std::shared_ptr<Node> ParseProgram();
+   std::shared_ptr<Program> ParseProgram();
 
    /*
       model -> MODEL ID COLON ID LBRACE states RBRACE
    */
-   std::shared_ptr<Node> ParseModel();
+   std::shared_ptr<Model> ParseModel();
 
    /*
       neighbourhood -> NEIGHBOURHOOD ID COLON NAT_LIT LBRACE neighbours RBRACE
    */
-   std::shared_ptr<Node> ParseNeighbourhood();
+   std::shared_ptr<Neighbourhood> ParseNeighbourhood();
 
    /*
       neighbours ->  neighbour neighbours_tail
       neighbours_tail -> COMMA neighbour neighbours_tail
       neighbours_tail -> Ɛ
    */
-   std::shared_ptr<Node> ParseNeighbours();
+   std::shared_ptr<Series<Neighbour>> ParseNeighbours();
 
    /*
       neighbour -> ID coord 
       neighbour -> coord
    */
-   std::shared_ptr<Node> ParseNeighbour();
+   std::shared_ptr<Neighbour> ParseNeighbour();
 
    /*
       states -> state states
       states -> state
    */
-   std::shared_ptr<Node> ParseStates();
+   std::shared_ptr<Series<State>> ParseStates();
 
    /*
-      state -> DEFAULT STATE ID
-      state -> STATE ID LBRACE pred RBRACE
-      state -> STATE ID LBRACE RBRACE
+      state -> DEFAULT STATE ID CHAR
+      state -> STATE ID CHAR LBRACE pred RBRACE
+      state -> STATE ID CHAR LBRACE RBRACE
    */
-   std::shared_ptr<Node> ParseState();
+   std::shared_ptr<State> ParseState();
 
    /*
       pred -> ex_disj pred_tail
@@ -131,32 +134,32 @@ namespace parser {
       set -> SET ID IN ANY COLON pred
       set -> SET ID IN coords COLON pred
    */
-   std::shared_ptr<Node> ParseSet();
+   std::shared_ptr<Cardinality> ParseSet();
 
    /*
       coord -> LSQUAR vector RSQUAR
    */
-   std::shared_ptr<Node> ParseCoordinate();
+   std::shared_ptr<Coordinate> ParseCoordinate();
 
    /*
       int -> NAT_LIT
       int -> SUB NAT_LIT
    */
-   std::shared_ptr<Node> ParseInteger();
+   std::shared_ptr<Integer> ParseInteger();
 
    /*
       vector -> NAT_LIT vector_tail
       vector_tail -> COMMA NAT_LIT vector_tail
       vector_tail -> Ɛ
    */
-   std::shared_ptr<Node> ParseVector();
+   std::shared_ptr<Series<Integer>> ParseVector();
 
    /*
       coords -> coord coords_tail
       coords_tail -> COMMA coord coords_tail
       coords_tail -> Ɛ
    */
-   std::shared_ptr<Node> ParseCoordinates();
+   std::shared_ptr<Series<Coordinate>> ParseCoordinates();
    
    // Performs the common binary parsing pattern, useful for abstracting binary operations.
    // Sends an error message if a token in the follow_set and first_set isn't found.
@@ -170,8 +173,9 @@ namespace parser {
    // Performs the array/series parsing pattern for representing lists of objects.
    // Sends an error message if a token in the follow_set isn't found.
    // NOTE: An ERROR token seperator means no seperator is decided.
-   std::shared_ptr<Node> SeriesParsing(
-      std::shared_ptr<Node> (parse_function)(), 
+   template<typename T>
+   std::shared_ptr<Series<T>> SeriesParsing(
+      std::shared_ptr<T> (parse_function)(), 
       std::vector<TOKEN_TYPE> first_set, 
       std::vector<TOKEN_TYPE> follow_set,
       std::string error_message,

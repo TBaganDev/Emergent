@@ -1,0 +1,15 @@
+model waves : neumann {
+    default state resting 'X'
+    state excited 'E' {
+        |set thing in all: thing == excited | >= 1
+    }
+
+    state refractory 'R' {
+        (this == excited) or ([0,1] == resting)
+    }
+}
+
+neighbourhood neumann : 2 {
+    [0,1], [1, 0], [0, -1], [-1,0]
+}
+

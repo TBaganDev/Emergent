@@ -1,0 +1,14 @@
+neighbourhood nextdoor : 1 {
+    L [-1], R [1]
+}
+
+model rule_thirty : nextdoor {
+    default state off '#' 
+
+    state on '0' {
+        ((L == on and (this == off and R == off)) or
+        (L == off and (this == on and R == on))) or
+        ((L == off and (this == on and R == off)) or
+        (L == off and (this == off and R == on)))
+    }
+}
