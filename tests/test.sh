@@ -18,6 +18,7 @@ rm -rf ./*.out
 pwd
 $DIR/bin/emergent ./game_of_life.emg
 $CLANG ./game_of_life.cpp -o game_of_life
+./game_of_life example.txt conway 4 example.txt
 
 cd ../../
 

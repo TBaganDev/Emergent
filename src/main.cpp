@@ -86,10 +86,6 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if(false) {
-    
-  }
-
   fputs(code.c_str(), object);
   fclose(object);
   spit("Object file Successful!\n");

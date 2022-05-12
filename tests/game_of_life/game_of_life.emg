@@ -11,5 +11,5 @@ model conway : moore {
         |set cell in all: cell == live| >= 2
     }
 
-    default state dead ' '
+    default state dead '-'
 }

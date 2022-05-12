@@ -3,3 +3,4 @@ run.bashrc
 tests/*/*
 !tests/*/*.emg
 .vscode
+image.cpp
