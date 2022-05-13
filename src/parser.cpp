@@ -45,12 +45,6 @@ void nextToken() {
   return;
 }
 
-// Pushes back the previous token, resetting the token to prev argument.
-void prevToken(TOKEN prev) {
-  token_buffer.push_front(token);
-  token = prev;
-}
-
 // Outputs parsing error to terminal.
 void parser::ParsingError(std::string caller, std::string error) {
   fprintf(stderr, "Parsing Error: %s\n", caller.c_str());
