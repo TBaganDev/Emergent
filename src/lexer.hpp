@@ -11,7 +11,7 @@ namespace lexer {
     END_OF_FILE = 0, // End of file
     ERROR = -100,    // Erroneous Token 
     ID = -1,         // Identifier [a-zA-Z_][a-zA-Z_0-9]*
-    CHAR = -21,      // Ascii Character '.'
+    CHAR = -21,      // Ascii Character '[.]{1}'
 
     // Keywords
     NEIGHBOURHOOD = -2, // Neighbourhood "neighbourhood"
@@ -58,7 +58,6 @@ namespace lexer {
     LSQUAR = int('['), // Left Square Bracket "["
     RSQUAR = int(']'), // Right Square Bracket "]"
     PIPE = int('|'),   // Pipe (Cardinality) "|"
-    APOS = int('\'')   // Apostrophy "'"
   };
 
   // Stores data related to each Token.
